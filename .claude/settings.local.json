@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/khuong/Downloads/b_RR3sswy6o7g-1774542443130/app/\\\\\\(dashboard\\\\\\)/)",
+      "Bash(wc -l /Users/khuong/Downloads/b_RR3sswy6o7g-1774542443130/components/**/*.tsx)",
+      "Bash(ls /Users/khuong/Downloads/b_RR3sswy6o7g-1774542443130/app/\\\\\\(dashboard\\\\\\)/categories)",
+      "Bash(ls /Users/khuong/Downloads/b_RR3sswy6o7g-1774542443130/app/\\\\\\(dashboard\\\\\\)/settings)"
+    ]
+  }
+}
