@@ -72,6 +72,11 @@ export function CardForm({ open, onOpenChange, card, onSubmit }: CardFormProps) 
     due_date: card?.due_date || 15,
     billing_cycle_start: card?.billing_cycle_start || null,
     billing_cycle_end: card?.billing_cycle_end || null,
+    issue_date: card?.issue_date || null,
+    expiry_date: card?.expiry_date || null,
+    annual_fee_amount: card?.annual_fee_amount ?? 0,
+    annual_fee_month: card?.annual_fee_month || null,
+    annual_fee_waiver_condition: card?.annual_fee_waiver_condition || '',
     card_color: card?.card_color || '#3B82F6',
     notes: card?.notes || '',
   })
@@ -210,6 +215,72 @@ export function CardForm({ open, onOpenChange, card, onSubmit }: CardFormProps) 
                 </Select>
               </Field>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="issue_date">Ngày phát hành</FieldLabel>
+                <Input
+                  id="issue_date"
+                  type="date"
+                  value={formData.issue_date || ''}
+                  onChange={(e) => updateField('issue_date', e.target.value || null)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="expiry_date">Ngày hết hạn</FieldLabel>
+                <Input
+                  id="expiry_date"
+                  type="date"
+                  value={formData.expiry_date || ''}
+                  onChange={(e) => updateField('expiry_date', e.target.value || null)}
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="annual_fee_amount">Phí thường niên (VND)</FieldLabel>
+                <Input
+                  id="annual_fee_amount"
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={formData.annual_fee_amount ?? ''}
+                  onChange={(e) => updateField('annual_fee_amount', Number(e.target.value))}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="annual_fee_month">Tháng thu phí</FieldLabel>
+                <Select
+                  value={formData.annual_fee_month ? String(formData.annual_fee_month) : 'none'}
+                  onValueChange={(value) => updateField('annual_fee_month', value === 'none' ? null : Number(value))}
+                >
+                  <SelectTrigger id="annual_fee_month">
+                    <SelectValue placeholder="Chọn tháng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Không có</SelectItem>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        Tháng {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="annual_fee_waiver_condition">Điều kiện miễn phí thường niên</FieldLabel>
+              <Input
+                id="annual_fee_waiver_condition"
+                placeholder="VD: Chi tiêu tối thiểu 50 triệu/năm"
+                value={formData.annual_fee_waiver_condition || ''}
+                onChange={(e) => updateField('annual_fee_waiver_condition', e.target.value)}
+              />
+            </Field>
 
             <Field>
               <FieldLabel htmlFor="card_color">Màu thẻ</FieldLabel>

@@ -26,12 +26,15 @@ CREATE TABLE IF NOT EXISTS public.cards (
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   bank_name TEXT NOT NULL,
   card_name TEXT NOT NULL,
-  card_network TEXT,
   last_four_digits TEXT,
   credit_limit NUMERIC NOT NULL DEFAULT 0,
   current_balance NUMERIC DEFAULT 0,
+  available_credit NUMERIC DEFAULT 0,
   statement_date INTEGER,
   due_date INTEGER,
+  billing_cycle_start INTEGER,
+  billing_cycle_end INTEGER,
+  issue_date DATE,
   expiry_date DATE,
   annual_fee_amount NUMERIC DEFAULT 0,
   annual_fee_month INTEGER,
@@ -50,119 +53,15 @@ CREATE POLICY "cards_insert_own" ON public.cards FOR INSERT WITH CHECK (user_id 
 CREATE POLICY "cards_update_own" ON public.cards FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "cards_delete_own" ON public.cards FOR DELETE USING (user_id = auth.uid());
 
--- 3. Cashback Policies table
-CREATE TABLE IF NOT EXISTS public.cashback_policies (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
-  category TEXT NOT NULL,
-  cashback_percentage NUMERIC NOT NULL,
-  cap_amount NUMERIC,
-  min_spend NUMERIC,
-  conditions TEXT,
-  valid_from DATE,
-  valid_to DATE,
-  is_active BOOLEAN DEFAULT TRUE,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.cashback_policies ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "cashback_policies_select_own" ON public.cashback_policies 
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "cashback_policies_insert_own" ON public.cashback_policies 
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "cashback_policies_update_own" ON public.cashback_policies 
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "cashback_policies_delete_own" ON public.cashback_policies 
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
-  );
-
--- 4. Installments table
-CREATE TABLE IF NOT EXISTS public.installments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
-  description TEXT NOT NULL,
-  monthly_amount NUMERIC NOT NULL,
-  total_months INTEGER NOT NULL,
-  remaining_months INTEGER NOT NULL,
-  start_date DATE NOT NULL,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.installments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "installments_select_own" ON public.installments 
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "installments_insert_own" ON public.installments 
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "installments_update_own" ON public.installments 
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "installments_delete_own" ON public.installments 
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
-  );
-
--- 5. Transactions table
-CREATE TABLE IF NOT EXISTS public.transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
-  amount NUMERIC NOT NULL,
-  merchant TEXT,
-  category TEXT,
-  transaction_date DATE NOT NULL,
-  description TEXT,
-  cashback_earned NUMERIC DEFAULT 0,
-  source TEXT DEFAULT 'manual',
-  gmail_message_id TEXT,
-  status TEXT DEFAULT 'confirmed',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "transactions_select_own" ON public.transactions 
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "transactions_insert_own" ON public.transactions 
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "transactions_update_own" ON public.transactions 
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
-  );
-CREATE POLICY "transactions_delete_own" ON public.transactions 
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
-  );
-
--- 6. Spending Categories table
+-- 3. Spending Categories table (defined before cashback_policies/transactions that reference it)
 CREATE TABLE IF NOT EXISTS public.spending_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   icon TEXT,
   color TEXT,
-  sort_order INTEGER DEFAULT 0,
+  budget_limit NUMERIC,
+  is_system BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -173,20 +72,134 @@ CREATE POLICY "spending_categories_insert_own" ON public.spending_categories FOR
 CREATE POLICY "spending_categories_update_own" ON public.spending_categories FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "spending_categories_delete_own" ON public.spending_categories FOR DELETE USING (user_id = auth.uid());
 
+-- 4. Cashback Policies table
+CREATE TABLE IF NOT EXISTS public.cashback_policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES public.spending_categories(id),
+  category_name TEXT,
+  cashback_percentage NUMERIC NOT NULL,
+  cap_amount NUMERIC,
+  min_spend NUMERIC,
+  valid_until DATE,
+  is_active BOOLEAN DEFAULT TRUE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.cashback_policies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "cashback_policies_select_own" ON public.cashback_policies
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "cashback_policies_insert_own" ON public.cashback_policies
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "cashback_policies_update_own" ON public.cashback_policies
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "cashback_policies_delete_own" ON public.cashback_policies
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = cashback_policies.card_id AND cards.user_id = auth.uid())
+  );
+
+-- 5. Installments table
+CREATE TABLE IF NOT EXISTS public.installments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  original_amount NUMERIC NOT NULL DEFAULT 0,
+  total_months INTEGER NOT NULL,
+  monthly_payment NUMERIC NOT NULL DEFAULT 0,
+  interest_rate NUMERIC NOT NULL DEFAULT 0,
+  remaining_months INTEGER NOT NULL,
+  remaining_balance NUMERIC NOT NULL DEFAULT 0,
+  merchant_name TEXT,
+  description TEXT,
+  start_date DATE NOT NULL,
+  next_payment_date DATE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.installments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "installments_select_own" ON public.installments
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "installments_insert_own" ON public.installments
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "installments_update_own" ON public.installments
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "installments_delete_own" ON public.installments
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = installments.card_id AND cards.user_id = auth.uid())
+  );
+
+-- 6. Transactions table
+CREATE TABLE IF NOT EXISTS public.transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES public.spending_categories(id),
+  amount NUMERIC NOT NULL,
+  merchant_name TEXT,
+  description TEXT,
+  transaction_date DATE NOT NULL,
+  transaction_time TIME,
+  is_installment BOOLEAN DEFAULT FALSE,
+  installment_id UUID REFERENCES public.installments(id),
+  cashback_earned NUMERIC DEFAULT 0,
+  source TEXT DEFAULT 'manual',
+  email_message_id TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "transactions_select_own" ON public.transactions
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "transactions_insert_own" ON public.transactions
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "transactions_update_own" ON public.transactions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
+  );
+CREATE POLICY "transactions_delete_own" ON public.transactions
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = transactions.card_id AND cards.user_id = auth.uid())
+  );
+
 -- 7. Bank Email Templates table
 CREATE TABLE IF NOT EXISTS public.bank_email_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   bank_name TEXT NOT NULL,
-  sender_emails TEXT[],
-  subject_patterns TEXT[],
-  parsing_method TEXT DEFAULT 'llm',
-  regex_patterns JSONB,
-  sample_email TEXT,
+  sender_email TEXT,
+  subject_pattern TEXT,
+  amount_regex TEXT,
+  merchant_regex TEXT,
+  date_regex TEXT,
+  card_regex TEXT,
   is_active BOOLEAN DEFAULT TRUE,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE public.bank_email_templates ENABLE ROW LEVEL SECURITY;
@@ -200,12 +213,12 @@ CREATE POLICY "bank_email_templates_delete_own" ON public.bank_email_templates F
 CREATE TABLE IF NOT EXISTS public.gmail_sync_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  synced_at TIMESTAMPTZ DEFAULT now(),
-  emails_scanned INTEGER DEFAULT 0,
+  sync_started_at TIMESTAMPTZ DEFAULT now(),
+  sync_completed_at TIMESTAMPTZ,
+  emails_processed INTEGER DEFAULT 0,
   transactions_created INTEGER DEFAULT 0,
-  transactions_pending INTEGER DEFAULT 0,
-  errors JSONB,
-  status TEXT
+  errors TEXT[],
+  status TEXT DEFAULT 'pending'
 );
 
 ALTER TABLE public.gmail_sync_logs ENABLE ROW LEVEL SECURITY;

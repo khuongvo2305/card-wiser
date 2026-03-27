@@ -22,6 +22,11 @@ export interface Card {
   due_date: number
   billing_cycle_start: number | null
   billing_cycle_end: number | null
+  issue_date: string | null
+  expiry_date: string | null
+  annual_fee_amount: number
+  annual_fee_month: number | null
+  annual_fee_waiver_condition: string | null
   card_color: string
   is_active: boolean
   notes: string | null

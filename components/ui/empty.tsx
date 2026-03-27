@@ -2,7 +2,45 @@ import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
-function Empty({ className, ...props }: React.ComponentProps<'div'>) {
+type EmptyProps = Omit<React.ComponentProps<'div'>, 'title'> & {
+  icon?: React.ReactNode
+  title?: React.ReactNode
+  description?: React.ReactNode
+  action?: React.ReactNode
+}
+
+function Empty({ className, icon, title, description, action, children, ...props }: EmptyProps) {
+  if (icon || title || description || action) {
+    return (
+      <div
+        data-slot="empty"
+        className={cn(
+          'flex min-w-0 flex-1 flex-col items-center justify-center gap-6 rounded-lg border-dashed p-6 text-center text-balance md:p-12',
+          className,
+        )}
+        {...props}
+      >
+        {icon && (
+          <div className="flex shrink-0 items-center justify-center mb-2 [&_svg]:pointer-events-none [&_svg]:shrink-0">
+            {icon}
+          </div>
+        )}
+        {(title || description) && (
+          <div className="flex max-w-sm flex-col items-center gap-2 text-center">
+            {title && <div className="text-lg font-medium tracking-tight">{title}</div>}
+            {description && (
+              <div className="text-muted-foreground text-sm/relaxed [&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4">
+                {description}
+              </div>
+            )}
+          </div>
+        )}
+        {action}
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div
       data-slot="empty"
@@ -11,7 +49,9 @@ function Empty({ className, ...props }: React.ComponentProps<'div'>) {
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </div>
   )
 }
 
