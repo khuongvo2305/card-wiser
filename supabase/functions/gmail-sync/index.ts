@@ -87,6 +87,7 @@ Deno.serve(async (req: Request) => {
     })
   }
 
+  try {
   // Extract user from JWT
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) {
@@ -95,14 +96,12 @@ Deno.serve(async (req: Request) => {
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-  // Verify user token
-  const userSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!)
-  const { data: { user }, error: userError } = await userSupabase.auth.getUser(
-    authHeader.replace('Bearer ', '')
-  )
+  // Verify user token using service role client
+  const token = authHeader.replace('Bearer ', '')
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
   if (userError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    return new Response(JSON.stringify({ error: 'Unauthorized', detail: userError?.message }), { status: 401 })
   }
 
   const userId = user.id
@@ -303,6 +302,13 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ error: errMsg }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  } catch (topErr) {
+    const msg = topErr instanceof Error ? topErr.message : String(topErr)
+    return new Response(
+      JSON.stringify({ error: 'Unhandled error', detail: msg }),
+      { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
     )
   }
 })
