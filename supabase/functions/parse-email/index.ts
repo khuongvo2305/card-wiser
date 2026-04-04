@@ -1,8 +1,6 @@
-import Anthropic from 'npm:@anthropic-ai/sdk'
+import { GoogleGenAI } from 'npm:@google/genai'
 
-const anthropic = new Anthropic({
-  apiKey: Deno.env.get('ANTHROPIC_API_KEY')!,
-})
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY')! })
 
 interface ParseEmailRequest {
   email_body: string
@@ -38,10 +36,7 @@ Deno.serve(async (req) => {
   try {
     const { email_body, bank_name }: ParseEmailRequest = await req.json()
 
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 512,
-      system: `You are parsing Vietnamese bank transaction notification emails.
+    const systemPrompt = `You are parsing Vietnamese bank transaction notification emails.
 Extract transaction details and return a JSON object only — no extra text.
 
 Required output format:
@@ -64,25 +59,23 @@ Common Vietnamese patterns:
 - "Thẻ" / "The" / "ending" = card number last 4 digits
 - "Số dư" / "So du" = available balance (ignore, not the transaction amount)
 - Amounts formatted as: 1.500.000 VND or 1,500,000 VND or 1500000
-- Bank: ${bank_name}`,
-      messages: [
-        {
-          role: 'user',
-          content: email_body,
-        },
-      ],
-    })
+- Bank: ${bank_name}`
 
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const result = await model.generateContent(`${systemPrompt}\n\n${email_body}`)
+    const text = result.response.text().trim()
 
-    let result: ParseResult
+    // Strip markdown code fences if present
+    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+
+    let parsed: ParseResult
     try {
-      result = JSON.parse(text)
+      parsed = JSON.parse(cleaned)
     } catch {
-      result = { is_transaction: false }
+      parsed = { is_transaction: false }
     }
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(parsed), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
