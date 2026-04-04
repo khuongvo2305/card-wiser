@@ -12,6 +12,7 @@ import {
   Tags,
   LogOut,
   Wallet,
+  Mail,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -63,6 +64,11 @@ const toolsNavItems = [
     title: 'Gợi ý chi tiêu',
     url: '/smart-spend',
     icon: Lightbulb,
+  },
+  {
+    title: 'Gmail Sync',
+    url: '/gmail-sync',
+    icon: Mail,
   },
 ]
 

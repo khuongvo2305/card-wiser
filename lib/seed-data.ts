@@ -255,3 +255,13 @@ export const SEED_CATEGORIES = [
   { name: 'Giải trí', icon: '🎬', color: '#F43F5E' },
   { name: 'Khác', icon: '💼', color: '#6B7280' },
 ]
+
+export const SEED_BANK_EMAIL_TEMPLATES = [
+  { bank_name: 'LPBank', sender_email: 'thongbao@lpbank.com.vn', subject_pattern: null, is_active: true },
+  { bank_name: 'Techcombank', sender_email: 'no-reply@techcombank.com.vn', subject_pattern: 'Thong bao giao dich', is_active: true },
+  { bank_name: 'Techcombank', sender_email: 'alert@techcombank.com.vn', subject_pattern: null, is_active: true },
+  { bank_name: 'MSB', sender_email: 'thongbao@msb.com.vn', subject_pattern: null, is_active: true },
+  { bank_name: 'Sacombank', sender_email: 'ebanking@sacombank.com', subject_pattern: null, is_active: true },
+  { bank_name: 'UOB', sender_email: 'uob.alerts@uobgroup.com', subject_pattern: null, is_active: true },
+  { bank_name: 'BIDV', sender_email: 'info@bidv.com.vn', subject_pattern: 'Bien dong so du', is_active: true },
+]

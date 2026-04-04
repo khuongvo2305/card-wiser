@@ -5,6 +5,7 @@ export interface Profile {
   default_currency: string
   gmail_connected: boolean
   gmail_refresh_token: string | null
+  last_gmail_sync_at: string | null
   created_at: string
   updated_at: string
 }
@@ -72,6 +73,7 @@ export interface Transaction {
   is_installment: boolean
   installment_id: string | null
   source: 'manual' | 'email' | 'import'
+  status: 'pending_review' | 'confirmed' | 'rejected'
   email_message_id: string | null
   cashback_earned: number
   notes: string | null

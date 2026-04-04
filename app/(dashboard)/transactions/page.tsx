@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import { Plus, Receipt, Filter } from 'lucide-react'
+import { Plus, Receipt, Filter, Mail, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty } from '@/components/ui/empty'
 import {
@@ -29,21 +30,38 @@ import { TransactionList } from '@/components/transactions/transaction-list'
 import type { Transaction, Card, SpendingCategory } from '@/lib/types'
 import { toast } from 'sonner'
 
-const fetchTransactions = async (cardFilter: string) => {
+const fetchTransactions = async (cardFilter: string, statusFilter: string) => {
   const supabase = createClient()
   let query = supabase
     .from('transactions')
     .select('*')
     .order('transaction_date', { ascending: false })
     .order('created_at', { ascending: false })
-  
+
   if (cardFilter && cardFilter !== 'all') {
     query = query.eq('card_id', cardFilter)
   }
-  
+
+  if (statusFilter === 'pending_review') {
+    query = query.eq('status', 'pending_review')
+  } else {
+    // Default: hide rejected transactions
+    query = query.neq('status', 'rejected')
+  }
+
   const { data, error } = await query
   if (error) throw error
   return data as Transaction[]
+}
+
+const fetchPendingCount = async () => {
+  const supabase = createClient()
+  const { count, error } = await supabase
+    .from('transactions')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'pending_review')
+  if (error) throw error
+  return count ?? 0
 }
 
 const fetchCards = async () => {
@@ -71,14 +89,16 @@ const fetchCategories = async () => {
 
 export default function TransactionsPage() {
   const [cardFilter, setCardFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null)
 
   const { data: transactions, error: txError, isLoading: txLoading, mutate: mutateTx } = useSWR(
-    ['transactions', cardFilter],
-    () => fetchTransactions(cardFilter)
+    ['transactions', cardFilter, statusFilter],
+    () => fetchTransactions(cardFilter, statusFilter)
   )
+  const { data: pendingCount, mutate: mutatePendingCount } = useSWR('pending-tx-count', fetchPendingCount)
   const { data: cards, isLoading: cardsLoading } = useSWR('cards-active', fetchCards)
   const { data: categories, isLoading: catLoading } = useSWR('categories', fetchCategories)
 
@@ -182,6 +202,85 @@ export default function TransactionsPage() {
     toast.success('Đã xóa giao dịch')
     setDeletingTransaction(null)
     mutateTx()
+    mutatePendingCount()
+  }
+
+  const handleConfirmTransaction = async (transaction: Transaction) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'confirmed' })
+      .eq('id', transaction.id)
+
+    if (error) {
+      toast.error('Không thể xác nhận giao dịch', { description: error.message })
+      return
+    }
+
+    // Update card balance now that it's confirmed
+    const card = cards?.find((c) => c.id === transaction.card_id)
+    if (card) {
+      await supabase
+        .from('cards')
+        .update({ current_balance: card.current_balance + transaction.amount })
+        .eq('id', card.id)
+    }
+
+    toast.success('Đã xác nhận giao dịch')
+    mutateTx()
+    mutatePendingCount()
+  }
+
+  const handleRejectTransaction = async (transaction: Transaction) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'rejected' })
+      .eq('id', transaction.id)
+
+    if (error) {
+      toast.error('Không thể từ chối giao dịch', { description: error.message })
+      return
+    }
+
+    toast.success('Đã từ chối giao dịch')
+    mutateTx()
+    mutatePendingCount()
+  }
+
+  const handleConfirmAll = async () => {
+    const supabase = createClient()
+    const pending = transactions?.filter((t) => t.status === 'pending_review') ?? []
+    if (pending.length === 0) return
+
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'confirmed' })
+      .in('id', pending.map((t) => t.id))
+
+    if (error) {
+      toast.error('Không thể xác nhận tất cả', { description: error.message })
+      return
+    }
+
+    // Update card balances
+    const cardAmountMap = new Map<string, number>()
+    for (const tx of pending) {
+      cardAmountMap.set(tx.card_id, (cardAmountMap.get(tx.card_id) ?? 0) + tx.amount)
+    }
+    for (const [cardId, totalAmount] of cardAmountMap) {
+      const card = cards?.find((c) => c.id === cardId)
+      if (card) {
+        await supabase
+          .from('cards')
+          .update({ current_balance: card.current_balance + totalAmount })
+          .eq('id', cardId)
+      }
+    }
+
+    toast.success(`Đã xác nhận ${pending.length} giao dịch`)
+    mutateTx()
+    mutatePendingCount()
   }
 
   if (txError) {
@@ -213,7 +312,7 @@ export default function TransactionsPage() {
               {cards?.map((card) => (
                 <SelectItem key={card.id} value={card.id}>
                   <div className="flex items-center gap-2">
-                    <div 
+                    <div
                       className="size-3 rounded-full"
                       style={{ backgroundColor: card.card_color }}
                     />
@@ -229,6 +328,38 @@ export default function TransactionsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Pending review banner */}
+      {pendingCount != null && pendingCount > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
+          <div className="flex items-center gap-2">
+            <Mail className="size-4 text-amber-600 dark:text-amber-400" />
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+              {pendingCount} giao dịch chờ xác nhận từ Gmail
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400"
+              onClick={() => setStatusFilter(statusFilter === 'pending_review' ? 'all' : 'pending_review')}
+            >
+              {statusFilter === 'pending_review' ? 'Xem tất cả' : 'Xem chờ xác nhận'}
+            </Button>
+            {statusFilter === 'pending_review' && (
+              <Button
+                size="sm"
+                className="gap-1"
+                onClick={handleConfirmAll}
+              >
+                <CheckCircle2 className="size-4" />
+                Xác nhận tất cả
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -254,6 +385,8 @@ export default function TransactionsPage() {
           categories={categories || []}
           onEdit={setEditingTransaction}
           onDelete={setDeletingTransaction}
+          onConfirm={handleConfirmTransaction}
+          onReject={handleRejectTransaction}
         />
       ) : (
         <Empty

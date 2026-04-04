@@ -29,7 +29,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import type { Profile, Card as CardType } from '@/lib/types'
 import { toast } from 'sonner'
-import { SEED_CARDS, SEED_CATEGORIES, SEED_CASHBACK_POLICIES } from '@/lib/seed-data'
+import { SEED_CARDS, SEED_CATEGORIES, SEED_CASHBACK_POLICIES, SEED_BANK_EMAIL_TEMPLATES } from '@/lib/seed-data'
 
 const CURRENCIES = [
   { value: 'VND', label: 'VND - Việt Nam Đồng' },
@@ -306,8 +306,15 @@ export default function SettingsPage() {
         }
       }
 
+      // 4. Seed bank email templates
+      const templateRows = SEED_BANK_EMAIL_TEMPLATES.map((t) => ({
+        ...t,
+        user_id: user.id,
+      }))
+      await supabase.from('bank_email_templates').insert(templateRows)
+
       toast.success(
-        `Đã tạo ${insertedCards.length} thẻ, ${insertedCategories.length} danh mục, ${policyRows.length} chính sách cashback`
+        `Đã tạo ${insertedCards.length} thẻ, ${insertedCategories.length} danh mục, ${policyRows.length} chính sách cashback, ${templateRows.length} mẫu email ngân hàng`
       )
       mutate()
     } catch {
@@ -440,6 +447,7 @@ export default function SettingsPage() {
                   <li>7 thẻ tín dụng (tổng hạn mức ~502 triệu VND)</li>
                   <li>11 danh mục chi tiêu mặc định</li>
                   <li>11 chính sách cashback cho các thẻ</li>
+                  <li>7 mẫu email ngân hàng (LPBank, Techcombank, MSB, Sacombank, UOB, BIDV)</li>
                 </ul>
               </div>
               <Button onClick={handleSeedData} disabled={isSeeding}>

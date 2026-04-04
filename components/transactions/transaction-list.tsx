@@ -1,6 +1,6 @@
 'use client'
 
-import { MoreVertical, Tag } from 'lucide-react'
+import { MoreVertical, Tag, CheckCircle2, XCircle, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -27,14 +27,18 @@ interface TransactionListProps {
   categories: SpendingCategory[]
   onEdit: (transaction: Transaction) => void
   onDelete: (transaction: Transaction) => void
+  onConfirm?: (transaction: Transaction) => void
+  onReject?: (transaction: Transaction) => void
 }
 
-export function TransactionList({ 
-  transactions, 
-  cards, 
-  categories, 
-  onEdit, 
-  onDelete 
+export function TransactionList({
+  transactions,
+  cards,
+  categories,
+  onEdit,
+  onDelete,
+  onConfirm,
+  onReject,
 }: TransactionListProps) {
   const getCard = (cardId: string) => cards.find((c) => c.id === cardId)
   const getCategory = (categoryId: string | null) => 
@@ -65,7 +69,15 @@ export function TransactionList({
                 </TableCell>
                 <TableCell>
                   <div>
-                    <p className="font-medium">{tx.merchant_name || 'Không rõ'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{tx.merchant_name || 'Không rõ'}</p>
+                      {tx.status === 'pending_review' && (
+                        <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300 dark:text-amber-400">
+                          <Mail className="size-3" />
+                          Chờ xác nhận
+                        </Badge>
+                      )}
+                    </div>
                     {tx.description && (
                       <p className="text-xs text-muted-foreground">{tx.description}</p>
                     )}
@@ -103,25 +115,49 @@ export function TransactionList({
                   {formatVND(tx.amount)}
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm">
-                        <MoreVertical className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(tx)}>
-                        Chỉnh sửa
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => onDelete(tx)}
-                      >
-                        Xóa
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center justify-end gap-1">
+                    {tx.status === 'pending_review' && onConfirm && onReject && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                          title="Xác nhận"
+                          onClick={() => onConfirm(tx)}
+                        >
+                          <CheckCircle2 className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-destructive hover:text-destructive"
+                          title="Từ chối"
+                          onClick={() => onReject(tx)}
+                        >
+                          <XCircle className="size-4" />
+                        </Button>
+                      </>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm">
+                          <MoreVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit(tx)}>
+                          Chỉnh sửa
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => onDelete(tx)}
+                        >
+                          Xóa
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             )
