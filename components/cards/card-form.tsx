@@ -70,8 +70,6 @@ export function CardForm({ open, onOpenChange, card, onSubmit }: CardFormProps) 
     current_balance: card?.current_balance || 0,
     statement_date: card?.statement_date || 1,
     due_date: card?.due_date || 15,
-    billing_cycle_start: card?.billing_cycle_start || null,
-    billing_cycle_end: card?.billing_cycle_end || null,
     issue_date: card?.issue_date || null,
     expiry_date: card?.expiry_date || null,
     annual_fee_amount: card?.annual_fee_amount ?? 0,

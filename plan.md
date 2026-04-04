@@ -5,7 +5,7 @@
 
 ## 1. Overview
 
-A personal credit card management app to track multiple credit cards, their billing cycles, cashback/reward policies, installments, transactions, and auto-sync transaction data from Gmail bank notifications.
+A personal credit card management app to track multiple credit cards, cashback/reward policies, installments, transactions, and auto-sync transaction data from Gmail bank notifications.
 
 **Tech Stack (Lovable default):** React + TypeScript + Tailwind CSS + Supabase (PostgreSQL, Auth, Edge Functions, Storage)
 

@@ -32,8 +32,6 @@ CREATE TABLE IF NOT EXISTS public.cards (
   available_credit NUMERIC DEFAULT 0,
   statement_date INTEGER,
   due_date INTEGER,
-  billing_cycle_start INTEGER,
-  billing_cycle_end INTEGER,
   issue_date DATE,
   expiry_date DATE,
   annual_fee_amount NUMERIC DEFAULT 0,

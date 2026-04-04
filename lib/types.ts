@@ -20,8 +20,6 @@ export interface Card {
   available_credit: number
   statement_date: number
   due_date: number
-  billing_cycle_start: number | null
-  billing_cycle_end: number | null
   issue_date: string | null
   expiry_date: string | null
   annual_fee_amount: number
