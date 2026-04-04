@@ -1,6 +1,6 @@
 import { GoogleGenAI } from 'npm:@google/genai'
 
-const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY')! })
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') })
 
 interface ParseEmailRequest {
   email_body: string
@@ -36,8 +36,9 @@ Deno.serve(async (req) => {
   try {
     const { email_body, bank_name }: ParseEmailRequest = await req.json()
 
-    const systemPrompt = `You are parsing Vietnamese bank transaction notification emails.
-Extract transaction details and return a JSON object only — no extra text.
+    const prompt = `You are parsing Vietnamese bank transaction notification emails.
+The email may be a FORWARDED message — if so, look inside the forwarded content for the original bank notification.
+Extract transaction details and return a JSON object only — no extra text, no markdown.
 
 Required output format:
 {
@@ -54,23 +55,32 @@ If this email is NOT a transaction notification, return: {"is_transaction": fals
 
 Common Vietnamese patterns:
 - "Số tiền" / "So tien" / "GD:" = transaction amount
-- "Tên đơn vị" / "Ten don vi" / "tai" = merchant name
-- "Ngày GD" / "Ngay GD" = transaction date
-- "Thẻ" / "The" / "ending" = card number last 4 digits
+- "Tên đơn vị" / "Ten don vi" / "tai" / "At:" = merchant name
+- "Ngày GD" / "Ngay GD" / "Date" = transaction date
+- "Thẻ" / "The" / "ending in" / "so cuoi" / "Card Number" = card last 4 digits
 - "Số dư" / "So du" = available balance (ignore, not the transaction amount)
-- Amounts formatted as: 1.500.000 VND or 1,500,000 VND or 1500000
-- Bank: ${bank_name}`
+- Amounts formatted as: 1.500.000 VND or 1,500,000 VND or 1500000 or "25,000 VND"
+- Forwarded email markers: "---------- Forwarded message ---------", "Fwd:", "Chuyển tiếp:"
+- Bank: ${bank_name}
 
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const result = await model.generateContent(`${systemPrompt}\n\n${email_body}`)
-    const text = result.response.text().trim()
+Email content:
+${email_body}`
 
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+      config: {
+        temperature: 0,
+        maxOutputTokens: 512,
+        responseMimeType: 'application/json',
+      },
+    })
+
+    const text = (response.text ?? '').trim()
 
     let parsed: ParseResult
     try {
-      parsed = JSON.parse(cleaned)
+      parsed = JSON.parse(text)
     } catch {
       parsed = { is_transaction: false }
     }
@@ -82,9 +92,11 @@ Common Vietnamese patterns:
       },
     })
   } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Parse failed'
+    console.error('parse-email error:', msg)
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'Parse failed' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
     )
   }
 })

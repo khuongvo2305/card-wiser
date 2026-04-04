@@ -206,7 +206,12 @@ Deno.serve(async (req: Request) => {
           // Parse with AI
           const parsed = await parseEmail(emailBody, template.bank_name)
 
-          if (!parsed.is_transaction) continue
+          if (!parsed.is_transaction) {
+            if ((parsed as Record<string, unknown>).error) {
+              errors.push(`parse-email failed for ${msg.id}: ${(parsed as Record<string, unknown>).error}`)
+            }
+            continue
+          }
 
           // Match card by last_four_digits
           let cardId: string | null = null
