@@ -5,6 +5,12 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID')!
 const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')!
 
+interface Card {
+  id: string
+  bank_name: string
+  last_four_digits: string
+}
+
 interface GmailMessage {
   id: string
   threadId: string
@@ -71,7 +77,7 @@ async function parseEmail(emailBody: string, bankName: string): Promise<Record<s
   return res.json()
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -146,7 +152,7 @@ Deno.serve(async (req) => {
       .from('cards')
       .select('id, bank_name, last_four_digits')
       .eq('user_id', userId)
-      .eq('is_active', true)
+      .eq('is_active', true) as { data: Card[] | null }
 
     // Determine search date (90 days ago if no previous sync)
     const afterDate = profile.last_gmail_sync_at
