@@ -16,12 +16,16 @@ interface GmailMessage {
   threadId: string
 }
 
+interface GmailPayload {
+  mimeType: string
+  body?: { data?: string }
+  parts?: GmailPayload[]
+}
+
 interface GmailMessageDetail {
   id: string
-  payload: {
+  payload: GmailPayload & {
     headers: Array<{ name: string; value: string }>
-    parts?: Array<{ mimeType: string; body: { data?: string } }>
-    body?: { data?: string }
   }
 }
 
@@ -41,24 +45,29 @@ async function getAccessToken(refreshToken: string): Promise<string> {
   return data.access_token
 }
 
-function decodeEmailBody(detail: GmailMessageDetail): string {
-  // Try parts first (multipart emails)
-  if (detail.payload.parts) {
-    for (const part of detail.payload.parts) {
-      if ((part.mimeType === 'text/plain' || part.mimeType === 'text/html') && part.body.data) {
-        const decoded = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'))
-        return new TextDecoder('utf-8').decode(
-          new Uint8Array([...decoded].map((c) => c.charCodeAt(0)))
-        )
-      }
+function decodeBase64(data: string): string {
+  const decoded = atob(data.replace(/-/g, '+').replace(/_/g, '/'))
+  return new TextDecoder('utf-8').decode(
+    new Uint8Array([...decoded].map((c) => c.charCodeAt(0)))
+  )
+}
+
+function decodeEmailBody(payload: GmailPayload): string {
+  // Base case: this part itself is text
+  if ((payload.mimeType === 'text/html' || payload.mimeType === 'text/plain') && payload.body?.data) {
+    return decodeBase64(payload.body.data)
+  }
+  // Recursive step: dig into nested parts (multipart/alternative, multipart/mixed, etc.)
+  if (payload.parts) {
+    // Prefer text/html over text/plain — check all parts recursively
+    for (const part of payload.parts) {
+      const result = decodeEmailBody(part)
+      if (result) return result
     }
   }
-  // Fallback to top-level body
-  if (detail.payload.body?.data) {
-    const decoded = atob(detail.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'))
-    return new TextDecoder('utf-8').decode(
-      new Uint8Array([...decoded].map((c) => c.charCodeAt(0)))
-    )
+  // Last resort: top-level body with data
+  if (payload.body?.data) {
+    return decodeBase64(payload.body.data)
   }
   return ''
 }
@@ -188,7 +197,10 @@ Deno.serve(async (req: Request) => {
             .eq('email_message_id', msg.id)
             .single()
 
-          if (existing) continue
+          if (existing) {
+            console.log(`[gmail-sync] Skip ${msg.id}: already in database`)
+            continue
+          }
 
           // Fetch full message
           const msgRes = await fetch(
@@ -196,12 +208,21 @@ Deno.serve(async (req: Request) => {
             { headers: { Authorization: `Bearer ${accessToken}` } }
           )
 
-          if (!msgRes.ok) continue
+          if (!msgRes.ok) {
+            console.log(`[gmail-sync] Skip ${msg.id}: Gmail API fetch failed (${msgRes.status})`)
+            errors.push(`Gmail fetch failed for ${msg.id}: ${msgRes.status}`)
+            continue
+          }
 
           const msgDetail: GmailMessageDetail = await msgRes.json()
-          const emailBody = decodeEmailBody(msgDetail)
+          console.log(`[gmail-sync] ${msg.id} mimeType=${msgDetail.payload.mimeType} parts=${msgDetail.payload.parts?.length ?? 0}`)
+          const emailBody = decodeEmailBody(msgDetail.payload)
 
-          if (!emailBody) continue
+          if (!emailBody) {
+            console.log(`[gmail-sync] Skip ${msg.id}: decodeEmailBody returned empty`)
+            errors.push(`Empty body for ${msg.id} (mimeType: ${msgDetail.payload.mimeType})`)
+            continue
+          }
 
           // Parse with AI
           const parsed = await parseEmail(emailBody, template.bank_name)
