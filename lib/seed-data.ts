@@ -131,17 +131,17 @@ export const SEED_CARDS = [
 ]
 
 export const SEED_CATEGORIES = [
-  { name: 'Ăn uống', icon: '🍽️', color: '#F97316', is_system: true, budget_limit: null, sort_order: 1 },
-  { name: 'Mua sắm', icon: '🛒', color: '#EC4899', is_system: true, budget_limit: null, sort_order: 2 },
-  { name: 'Online', icon: '🌐', color: '#3B82F6', is_system: true, budget_limit: null, sort_order: 3 },
-  { name: 'Di chuyển', icon: '🚗', color: '#EAB308', is_system: true, budget_limit: null, sort_order: 4 },
-  { name: 'Thực phẩm', icon: '🥦', color: '#22C55E', is_system: true, budget_limit: null, sort_order: 5 },
-  { name: 'Hóa đơn', icon: '💡', color: '#6366F1', is_system: true, budget_limit: null, sort_order: 6 },
-  { name: 'Y tế', icon: '🏥', color: '#EF4444', is_system: true, budget_limit: null, sort_order: 7 },
-  { name: 'Giáo dục', icon: '📚', color: '#8B5CF6', is_system: true, budget_limit: null, sort_order: 8 },
-  { name: 'Du lịch', icon: '✈️', color: '#14B8A6', is_system: true, budget_limit: null, sort_order: 9 },
-  { name: 'Giải trí', icon: '🎬', color: '#F43F5E', is_system: true, budget_limit: null, sort_order: 10 },
-  { name: 'Khác', icon: '💼', color: '#6B7280', is_system: true, budget_limit: null, sort_order: 99 },
+  { name: 'Ăn uống', icon: '🍽️', color: '#F97316', is_system: true, budget_limit: null },
+  { name: 'Mua sắm', icon: '🛒', color: '#EC4899', is_system: true, budget_limit: null },
+  { name: 'Online', icon: '🌐', color: '#3B82F6', is_system: true, budget_limit: null },
+  { name: 'Di chuyển', icon: '🚗', color: '#EAB308', is_system: true, budget_limit: null },
+  { name: 'Thực phẩm', icon: '🥦', color: '#22C55E', is_system: true, budget_limit: null },
+  { name: 'Hóa đơn', icon: '💡', color: '#6366F1', is_system: true, budget_limit: null },
+  { name: 'Y tế', icon: '🏥', color: '#EF4444', is_system: true, budget_limit: null },
+  { name: 'Giáo dục', icon: '📚', color: '#8B5CF6', is_system: true, budget_limit: null },
+  { name: 'Du lịch', icon: '✈️', color: '#14B8A6', is_system: true, budget_limit: null },
+  { name: 'Giải trí', icon: '🎬', color: '#F43F5E', is_system: true, budget_limit: null },
+  { name: 'Khác', icon: '💼', color: '#6B7280', is_system: true, budget_limit: null },
 ]
 
 export const SEED_CASHBACK_POLICIES: {
@@ -314,8 +314,8 @@ export const SEED_BANK_EMAIL_TEMPLATES = [
   { bank_name: 'LPBank', sender_email: 'thongbao@lpbank.com.vn', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
   { bank_name: 'Techcombank', sender_email: 'no-reply@techcombank.com.vn', subject_pattern: 'Thong bao giao dich', is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
   { bank_name: 'Techcombank', sender_email: 'alert@techcombank.com.vn', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
-  { bank_name: 'MSB', sender_email: 'thongbao@msb.com.vn', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
+  { bank_name: 'MSB', sender_email: 'banking_notify@msb.com.vn', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
   { bank_name: 'Sacombank', sender_email: 'ebanking@sacombank.com', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
-  { bank_name: 'UOB', sender_email: 'uob.alerts@uobgroup.com', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
-  { bank_name: 'BIDV', sender_email: 'info@bidv.com.vn', subject_pattern: 'Bien dong so du', is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
+  { bank_name: 'UOB', sender_email: 'unialerts@uobgroup.com', subject_pattern: null, is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
+  { bank_name: 'BIDV', sender_email: 'bidvcare@bidv.com.vn', subject_pattern: 'Bien dong so du', is_active: true, notes: null, amount_regex: null, merchant_regex: null, date_regex: null, card_regex: null },
 ]
